@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart'; // İzinleri kullanabilmek için eklenen paket
 
 class EarthquakeListScreen extends StatefulWidget {
   @override
@@ -14,6 +15,18 @@ class _EarthquakeListScreenState extends State<EarthquakeListScreen> {
   @override
   void initState() {
     super.initState();
+    checkPermissions(); // İzinleri kontrol etme işlemi initState içinde çağrılıyor
+  }
+
+  Future<void> checkPermissions() async {
+    // Kullanıcının konum izni durumunu kontrol et
+    PermissionStatus locationPermissionStatus = await Permission.location.status;
+    if (!locationPermissionStatus.isGranted) {
+      // Eğer konum izni verilmemişse, izin iste
+      await Permission.location.request();
+    }
+
+    // Verileri çekme işlemi
     fetchData();
   }
 
@@ -23,7 +36,8 @@ class _EarthquakeListScreenState extends State<EarthquakeListScreen> {
 
     var apiUrl =
         'https://deprem.afad.gov.tr/apiv2/event/filter?start=${twentyFourHoursAgo.toIso8601String()}&end=${now.toIso8601String()}&orderby=time';
-
+        // 'https://deprem.afad.gov.tr/apiv2/event/filter?start=${twentyFourHoursAgo.toIso8601String()}&end=${now.toIso8601String()}&limit=20&orderby=time';
+        // alttaki son 20 depremi gösteriyor
     var response = await http.get(Uri.parse(apiUrl));
     if (response.statusCode == 200) {
       setState(() {
@@ -56,6 +70,20 @@ class _EarthquakeListScreenState extends State<EarthquakeListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Son 24 Saatteki Depremler'),
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: 20.0),
+            child: earthquakes.isNotEmpty
+                ? Chip(
+              label: Text(
+                'Toplam Deprem Sayısı: ${earthquakes.length}',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+            )
+                : SizedBox.shrink(),
+          ),
+        ],
       ),
       body: ListView.builder(
         itemCount: earthquakes.length,
@@ -79,7 +107,10 @@ class _EarthquakeListScreenState extends State<EarthquakeListScreen> {
                 Text('İl: ${earthquake['province']}'),
                 Text('İlçe: ${earthquake['district']}'),
                 Text('Mahalle: ${earthquake['neighborhood']}'),
-                SizedBox(height: 8),
+                Container(
+                  color: Colors.red,
+                  height: 4,
+                ),
               ],
             ),
           );
